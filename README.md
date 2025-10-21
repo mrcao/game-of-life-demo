@@ -51,10 +51,24 @@ python examples/cli.py
 - Interactive controls for all features
 - Modern, accessible design
 
+## Performance Notes
+
+**Current performance**: ~30ms per step (60×60 grid) = ~33 fps
+
+For detailed analysis and optimization strategies, see:
+- **`On_Efficiency_and_Speed.md`** - Comprehensive performance guide (pedagogical + practical)
+- **`CodeReview_Speed_issues.md`** - Specific bottleneck analysis
+
+**Quick summary**:
+- Main bottlenecks: Double hashing (40%), gridline redrawing (27%), core computation (23%)
+- Potential improvements: 2-3× speedup with caching and rendering optimizations
+- PyScript is 10-50× slower than native JavaScript (expected trade-off)
+
 ## Extension Ideas
 - Preset pattern library (glider, pulsar, gosper glider gun)
 - Export/import boards to JSON
 - Different rule sets (B3/S23 variants)
 - Heatmap visualization of cell age
 - Statistics panel (population, generation count)
+- Performance optimizations (see efficiency docs above)
 
