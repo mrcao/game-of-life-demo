@@ -1,0 +1,12 @@
+[project]
+name = "game-of-life"
+version = "0.1.0"
+description = "Conway's Game of Life — Python core + PyScript web UI"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Your Name"}]
+license = { text = "MIT" }
+
+[tool.setuptools]
+packages = ["life"]
+
