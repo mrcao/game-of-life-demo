@@ -110,13 +110,14 @@ def show_status(status_key):
 
 # Speed label removed - now showing actual ms value
 
-def count_alive():
-    """Count alive cells in grid"""
-    return sum(1 for r in range(grid.cfg.rows) for c in range(grid.cfg.cols) if grid.grid[r][c] == 1)
-
 def is_grid_dead():
-    """Check if grid has no alive cells"""
-    return count_alive() == 0
+    """Check if grid has no alive cells - OPTIMIZED: early exit"""
+    # OPTIMIZATION: Exit as soon as we find any alive cell (don't scan entire grid)
+    for r in range(grid.cfg.rows):
+        for c in range(grid.cfg.cols):
+            if grid.grid[r][c] == 1:
+                return False  # Found alive cell, grid is not dead!
+    return True  # Scanned everything, no alive cells found
 
 def update_button_state():
     """Update play/pause button appearance based on state"""
@@ -136,66 +137,29 @@ def resize_canvas():
     canvas.height = grid.cfg.rows * cell_size
 
 def draw():
-    """Render the grid to canvas"""
-    # Ensure canvas matches grid
-    resize_canvas()
+    """Render the grid to canvas - OPTIMIZED: no resize, no gridlines"""
+    # OPTIMIZATION: Don't resize canvas every frame (only when grid size changes)
+    # OPTIMIZATION: Skip gridlines for performance (122 stroke operations saved!)
     
     # Clear canvas
     ctx.fillStyle = "#0a0d12"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     
-    # Draw gridlines (subtle)
-    ctx.strokeStyle = "#12202d"
-    ctx.lineWidth = 1
-    for r in range(grid.cfg.rows + 1):
-        y = r * cell_size + 0.5
-        ctx.beginPath()
-        ctx.moveTo(0, y)
-        ctx.lineTo(canvas.width, y)
-        ctx.stroke()
-    for c in range(grid.cfg.cols + 1):
-        x = c * cell_size + 0.5
-        ctx.beginPath()
-        ctx.moveTo(x, 0)
-        ctx.lineTo(x, canvas.height)
-        ctx.stroke()
-    
-    # Draw alive cells
+    # Draw alive cells only
     ctx.fillStyle = "#4fd1ff"
     for r in range(grid.cfg.rows):
         for c in range(grid.cfg.cols):
             if grid.grid[r][c] == 1:
                 ctx.fillRect(c * cell_size + 1, r * cell_size + 1, cell_size - 1, cell_size - 1)
 
-def check_activity():
-    """Check if grid has changed (has activity)"""
-    global last_grid_hash, no_activity_steps
-    
-    current_hash = grid.state_hash()
-    
-    if last_grid_hash is None:
-        last_grid_hash = current_hash
-        no_activity_steps = 0
-        return True
-    
-    if current_hash == last_grid_hash:
-        no_activity_steps += 1
-    else:
-        no_activity_steps = 0
-    
-    last_grid_hash = current_hash
-    
-    # If no activity for 2+ steps, grid is effectively dead
-    if no_activity_steps >= 2:
-        return False
-    return True
-
 def step_once(perturb_if_repeating=True):
-    """Execute one generation step"""
-    global running
+    """Execute one generation step - OPTIMIZED: single hash computation"""
+    global running, last_grid_hash, no_activity_steps
     
-    # Simple whole-grid pattern detection
+    # OPTIMIZATION: Compute hash ONCE and reuse for both pattern detection AND activity check
     h = grid.state_hash()
+    
+    # Pattern detection for auto-perturb
     period = monitor.observe(h)
     if perturb_if_repeating and auto_perturb_chk.checked and period is not None:
         # Use perturb_rate to control how aggressive the perturbation is
@@ -204,6 +168,13 @@ def step_once(perturb_if_repeating=True):
         num_perturbs = max(1, int(perturb_rate * 5))  # 0-5 perturbations
         for _ in range(num_perturbs):
             perturb_oscillation(grid, radius=2)
+    
+    # Activity detection (reuse the same hash!)
+    if last_grid_hash is not None and h == last_grid_hash:
+        no_activity_steps += 1
+    else:
+        no_activity_steps = 0
+    last_grid_hash = h
     
     grid.step()
     draw()
@@ -216,8 +187,8 @@ def step_once(perturb_if_repeating=True):
                 window.clearTimeout(timer_id)
             update_button_state()
             show_status("grid_died")
-    elif not check_activity():
-        # No activity detected (still life or period-1 oscillator that looks same)
+    elif no_activity_steps >= 2:
+        # No activity detected (still life or period-1 oscillator)
         if running:
             running = False
             if timer_id is not None:
@@ -425,7 +396,7 @@ def on_perturbrate_input_change(evt):
 
 def resize_grid(new_size):
     """Resize grid to new size (shared logic)"""
-    global grid_size, cell_size, grid, monitor, running, timer_id, last_grid_hash, no_activity_steps, cell_tracker
+    global grid_size, cell_size, grid, monitor, running, timer_id, last_grid_hash, no_activity_steps
     
     # Stop animation if running
     was_running = running
@@ -471,6 +442,9 @@ def resize_grid(new_size):
     last_grid_hash = None
     no_activity_steps = 0
     
+    # OPTIMIZATION: Resize canvas only when grid size actually changes
+    resize_canvas()
+    
     draw()
     update_button_state()
     
@@ -515,6 +489,7 @@ gridsize_input.addEventListener("change", create_proxy(on_gridsize_input_change)
 canvas.addEventListener("click", create_proxy(board_click))
 
 # Initialize display
+resize_canvas()  # Set initial canvas size
 draw()
 update_button_state()
 
