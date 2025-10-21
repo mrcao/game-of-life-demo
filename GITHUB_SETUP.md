@@ -6,7 +6,7 @@
 cd /Users/marcolin/Documents/Coding/Deyang/GoL
 
 # Replace YOUR_USERNAME with your actual GitHub username
-git remote add origin https://github.com/YOUR_USERNAME/game-of-life.git
+git remote add origin https://github.com/mrcao/game-of-life.git
 
 # Push to GitHub
 git push -u origin main
